@@ -1,0 +1,8 @@
+#  Admint lte 2 files ignore
+bower_components
+plugins
+dist
+# composer files
+vendor
+uploads
+# 
