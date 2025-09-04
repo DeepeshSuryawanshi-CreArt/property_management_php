@@ -176,44 +176,112 @@ class database
             "pagination" => []
         ];
 
+        // check if property table exists
         if (!$this->table_exist("property")) {
             $result["message"] = "Properties table does not exist";
             return $result;
         }
 
-        // calculate offset
+        // calculate offset safely
+        $page = max(1, $page); // avoid negative/zero page
         $offset = ($page - 1) * $limit;
 
-        // count total properties
+        // 1. count total properties
         $countQuery = "SELECT COUNT(*) as total FROM property";
         $countResult = $this->database->query($countQuery);
-        $row = $countResult->fetch_assoc();
-        $total_records = $row['total'];
 
-        // fetch paginated properties
-        $query = "SELECT * FROM property ORDER BY id DESC LIMIT ? OFFSET ?";
+        if ($countResult === false) {
+            $result["message"] = "Error fetching total count: " . $this->database->error;
+            return $result;
+        }
+
+        $row = $countResult->fetch_assoc();
+        $total_records = (int) ($row['total'] ?? 0);
+
+        // 2. fetch paginated properties with user name
+        $query = "SELECT p.*, CONCAT(u.firstname, ' ', u.lastname) AS listed_by
+          FROM property p 
+          LEFT JOIN users u ON p.listed_by = u.id 
+          ORDER BY p.id DESC 
+          LIMIT ? OFFSET ?";
+
         $stmt = $this->database->prepare($query);
+
+        if (!$stmt) {
+            $result["message"] = "Prepare failed: " . $this->database->error;
+            return $result;
+        }
+
         $stmt->bind_param("ii", $limit, $offset);
-        $stmt->execute();
+
+        if (!$stmt->execute()) {
+            $result["message"] = "Execute failed: " . $stmt->error;
+            return $result;
+        }
+
         $properties = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-        if ($properties) {
-            $result["success"] = true;
-            $result["message"] = "Properties fetched successfully";
-            $result["data"] = $properties;
+        // 3. set response
+        $result["success"] = true;
+        $result["message"] = $properties ? "Properties fetched successfully" : "No properties found";
+        $result["data"] = $properties;
 
-            // pagination info
-            $result["pagination"] = [
-                "current_page" => $page,
-                "per_page" => $limit,
-                "total_records" => $total_records,
-                "total_pages" => ceil($total_records / $limit),
-                "has_next" => $page < ceil($total_records / $limit),
-                "has_prev" => $page > 1
-            ];
-        } else {
-            $result["message"] = "No properties found";
+        // pagination info
+        $total_pages = ($limit > 0) ? ceil($total_records / $limit) : 1;
+        $result["pagination"] = [
+            "current_page" => $page,
+            "per_page" => $limit,
+            "total_records" => $total_records,
+            "total_pages" => $total_pages,
+            "has_next" => $page < $total_pages,
+            "has_prev" => $page > 1
+        ];
+        return $result;
+    }
+
+    // get a property details
+    public function get_single_property(int $id): array
+    {
+        $result = [
+            "success" => false,
+            "message" => "",
+            "data" => [],
+            "pagination" => []
+        ];
+
+        // check if property table exists
+        if (!$this->table_exist("property")) {
+            $result["message"] = "Properties table does not exist";
+            return $result;
         }
+
+        // 2. fetch properties with user name
+        $query = "SELECT p.*, CONCAT(u.firstname, ' ', u.lastname) AS listed_by
+          FROM property p WHERE id = ?
+          LEFT JOIN users u ON p.listed_by = u.id 
+          ORDER BY p.id DESC";
+
+        $stmt = $this->database->prepare($query);
+
+        if (!$stmt) {
+            $result["message"] = "Prepare failed: " . $this->database->error;
+            return $result;
+        }
+
+        $stmt->bind_param("i",$id);
+
+        if (!$stmt->execute()) {
+            $result["message"] = "Execute failed: " . $stmt->error;
+            return $result;
+        }
+
+        $properties = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        // 3. set response
+        $result["success"] = true;
+        $result["message"] = $properties ? "Properties fetched successfully" : "No properties found";
+        $result["data"] = $properties;
+        
         return $result;
     }
 

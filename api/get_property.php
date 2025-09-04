@@ -64,7 +64,7 @@ try {
 
 // get page from request (default = 1)
 $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
-$limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 10;
+$limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 5;
 
 $response = $db->getProperties($page, $limit);
 
