@@ -238,6 +238,64 @@ class database
         ];
         return $result;
     }
+    // update the property
+    public function updateProperty(int $id, array $params = []): array
+    {
+        echo "<pre>";
+        var_dump($params);
+        echo "</pre>";
+        if ($this->table_exist('property')) {
+            if (empty($params)) {
+                return [
+                    'success' => false,
+                    'message' => 'No data provided for update.'
+                ];
+            }
+
+            // build SET clause dynamically: column1 = ?, column2 = ?
+            $set_clause = implode(", ", array_map(function ($col) {
+                return "$col = ?";
+            }, array_keys($params)));
+
+            $query = "UPDATE property SET $set_clause WHERE id = ?";
+            $stmt = $this->database->prepare($query);
+
+            if ($stmt === false) {
+                return [
+                    'success' => false,
+                    'error' => $this->database->error,
+                    'message' => 'Failed to prepare statement'
+                ];
+            }
+
+            // build types (all strings + one integer for id at the end)
+            $types = str_repeat("s", count($params)) . "i";
+            $values = array_values($params);
+            $values[] = $id; // add id at the end for WHERE clause
+
+            // bind params dynamically
+            $stmt->bind_param($types, ...$values);
+            $result = $stmt->execute();
+
+            if ($result) {
+                return [
+                    'success' => true,
+                    'message' => 'Property updated successfully.'
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'error' => $stmt->error,
+                    'message' => 'Failed to update property.'
+                ];
+            }
+        } else {
+            return [
+                'success' => false,
+                'message' => "Table 'property' does not exist"
+            ];
+        }
+    }
 
     // get a property details
     public function get_single_property(int $id): array
@@ -257,9 +315,11 @@ class database
 
         // 2. fetch properties with user name
         $query = "SELECT p.*, CONCAT(u.firstname, ' ', u.lastname) AS listed_by
-          FROM property p WHERE id = ?
-          LEFT JOIN users u ON p.listed_by = u.id 
-          ORDER BY p.id DESC";
+                FROM property p
+                LEFT JOIN users u ON p.listed_by = u.id
+                WHERE p.id = ?
+                ORDER BY p.id DESC
+                ";
 
         $stmt = $this->database->prepare($query);
 
@@ -268,7 +328,7 @@ class database
             return $result;
         }
 
-        $stmt->bind_param("i",$id);
+        $stmt->bind_param("i", $id);
 
         if (!$stmt->execute()) {
             $result["message"] = "Execute failed: " . $stmt->error;
@@ -281,7 +341,7 @@ class database
         $result["success"] = true;
         $result["message"] = $properties ? "Properties fetched successfully" : "No properties found";
         $result["data"] = $properties;
-        
+
         return $result;
     }
 

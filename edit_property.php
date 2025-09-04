@@ -1,5 +1,4 @@
 <?php
-require './middlewares/auth.php';
 require './vendor/autoload.php';
 require './libs/database.php';
 
@@ -7,245 +6,248 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 $secret_key = "my_key_kill";
+$jwt = $_COOKIE['token'];
+$user_id;
+
+try {
+  $decoded = JWT::decode($jwt, new Key($secret_key, 'HS256'));
+
+  // Extract user data
+  $user_id = $decoded->data->user_id ?? null;
+  $user_email = $decoded->data->email ?? null;
+
+  json_encode([
+    "success" => true,
+    "message" => "Token decoded successfully",
+    "user_id" => $user_id,
+    "email" => $user_email
+  ]);
+} catch (Exception $e) {
+  echo json_encode([
+    "success" => false,
+    "message" => "Invalid or expired token",
+    "error" => $e->getMessage()
+  ]);
+  header('location:login.html');
+  exit();
+}
+
 $db = new database();
 $all_set = true;
 $user_id = null;
 $errors = [
-    'name' => '',
-    'category' => '',
-    'type' => '',
-    'details' => '',
-    'address' => '',
-    'city' => '',
-    'country' => '',
-    'zip_code' => '',
-    'photos' => '',
-    'user_id' => '',
-    'token' => '',
-    'system' => ''
+  'name' => '',
+  'category' => '',
+  'type' => '',
+  'details' => '',
+  'address' => '',
+  'city' => '',
+  'country' => '',
+  'zip_code' => '',
+  'photos' => '',
+  'user_id' => '',
+  'token' => '',
+  'system' => ''
 ];
 function test_data($data)
 {
-    $data = trim($data);
-    $data = stripcslashes($data);
-    $data = htmlspecialchars($data);
-    return $data;
+  $data = trim($data);
+  $data = stripcslashes($data);
+  $data = htmlspecialchars($data);
+  return $data;
 }
 
-//  jwt working 
-$headers = apache_request_headers();
-$authHeader = $headers['Authorization'] ?? '';
-
-if (!$authHeader) {
-    header('content-type:app;ication/json');
-    echo json_encode([
-        "success" => false,
-        "message" => "Authorization header missing"
-    ]);
-    exit();
-}
-
-list($bearer, $jwt) = explode(" ", $authHeader);
-
-if ($bearer !== "Bearer" || !$jwt) {
-    die(json_encode([
-        "success" => false,
-        "message" => "Invalid Authorization format"
-    ]));
-}
-
-try {
-    $decoded = JWT::decode($jwt, new Key($secret_key, 'HS256'));
-
-    // Extract user data
-    $user_id = $decoded->data->user_id ?? null;
-    $user_email = $decoded->data->email ?? null;
-
-    json_encode([
-        "success" => true,
-        "message" => "Token decoded successfully",
-        "user_id" => $user_id,
-        "email" => $user_email
-    ]);
-} catch (Exception $e) {
-    header('content-type:app;ication/json');
-    echo json_encode([
-        "success" => false,
-        "message" => "Invalid or expired token",
-        "error" => $e->getMessage()
-    ]);
-    exit();
-}
-
-
+// POST REQUEST HANDLE
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // property fields
-    $name = $category = $type = $details = $address = $city = $country = $zip_code = $photo_path = null;
+  // echo "<pre>";
+  // var_dump($_POST);
+  // echo "</pre>";
+  // // property fields
+  $name = $category = $type = $details = $address = $city = $country = $zip_code = $photo_path = null;
+  $property_id = $_POST['id'];
 
-    // name
-    if (empty($_POST['name'])) {
-        $errors['name'] = "Property name is required";
-        $all_set = false;
-    } else {
-        $name = test_data($_POST['name']);
+  // Validation (same as your code)
+  if (empty($_POST['name'])) {
+    $errors['name'] = "Property name is required";
+    $all_set = false;
+  } else {
+    $name = test_data($_POST['name']);
+  }
+
+  if (empty($_POST['category'])) {
+    $errors['category'] = "Category is required";
+    $all_set = false;
+  } else {
+    $category = test_data($_POST['category']);
+  }
+
+  if (empty($_POST['type'])) {
+    $errors['type'] = "Type is required";
+    $all_set = false;
+  } else {
+    $type = test_data($_POST['type']);
+  }
+
+  if (empty($_POST['details'])) {
+    $errors['details'] = "Details are required";
+    $all_set = false;
+  } else {
+    $details = test_data($_POST['details']);
+  }
+
+  if (empty($_POST['address'])) {
+    $errors['address'] = "Address is required";
+    $all_set = false;
+  } else {
+    $address = test_data($_POST['address']);
+  }
+
+  if (empty($_POST['city'])) {
+    $errors['city'] = "City is required";
+    $all_set = false;
+  } else {
+    $city = test_data($_POST['city']);
+  }
+
+  if (empty($_POST['country'])) {
+    $errors['country'] = "Country is required";
+    $all_set = false;
+  } else {
+    $country = test_data($_POST['country']);
+  }
+
+  if (empty($_POST['zip_code'])) {
+    $errors['zip_code'] = "Zip code is required";
+    $all_set = false;
+  } else {
+    $zip_code = test_data($_POST['zip_code']);
+    if (!preg_match("/^[0-9]{5,6}$/", $zip_code)) {
+      $errors['zip_code'] = "Invalid zip code";
+      $all_set = false;
     }
+  }
 
-    // category
-    if (empty($_POST['category'])) {
-        $errors['category'] = "Category is required";
-        $all_set = false;
+  // photo upload (keep existing if no new photo uploaded)
+  // Keep current DB photo by default (so it remains if no new file uploaded)
+  $photo_path = $_POST['photo'];
+
+  // Handle uploaded photo (if any)
+  if (isset($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE) {
+    $file = $_FILES['photo'];
+
+    // basic upload error check
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+      $errors['photo'] = "Error uploading photo (code {$file['error']})";
+      $all_set = false;
     } else {
-        $category = test_data($_POST['category']);
-    }
+      // use finfo for reliable MIME detection
+      $finfo = new finfo(FILEINFO_MIME_TYPE);
+      $mime = $finfo->file($file['tmp_name']);
+      $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
 
-    // type
-    if (empty($_POST['type'])) {
-        $errors['type'] = "Type is required";
+      if (!isset($allowed[$mime])) {
+        $errors['photo'] = "Only JPG, PNG, GIF allowed";
         $all_set = false;
-    } else {
-        $type = test_data($_POST['type']);
-    }
-
-    // details
-    if (empty($_POST['details'])) {
-        $errors['details'] = "Details are required";
+      } elseif ($file['size'] > 5 * 1024 * 1024) {
+        $errors['photo'] = "File too large (max 5MB)";
         $all_set = false;
-    } else {
-        $details = test_data($_POST['details']);
-    }
-
-    // address
-    if (empty($_POST['address'])) {
-        $errors['address'] = "Address is required";
-        $all_set = false;
-    } else {
-        $address = test_data($_POST['address']);
-    }
-
-    // city
-    if (empty($_POST['city'])) {
-        $errors['city'] = "City is required";
-        $all_set = false;
-    } else {
-        $city = test_data($_POST['city']);
-    }
-
-    // country
-    if (empty($_POST['country'])) {
-        $errors['country'] = "Country is required";
-        $all_set = false;
-    } else {
-        $country = test_data($_POST['country']);
-    }
-
-    // zip_code
-    if (empty($_POST['zip_code'])) {
-        $errors['zip_code'] = "Zip code is required";
-        $all_set = false;
-    } else {
-        $zip_code = test_data($_POST['zip_code']);
-        if (!preg_match("/^[0-9]{5,6}$/", $zip_code)) {
-            $errors['zip_code'] = "Invalid zip code";
-            $all_set = false;
-        }
-    }
-
-    // property photo upload
-    if (!empty($_FILES['photo']['name'])) {
-        if ($_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
-            $errors['photo'] = "Error uploading photo";
-            $all_set = false;
+      } else {
+        // Absolute directory where PHP will write the file
+        $uploadDirAbs = __DIR__ . "/../uploads/properties/";
+        if (!is_dir($uploadDirAbs) && !mkdir($uploadDirAbs, 0755, true)) {
+          $errors['photo'] = "Cannot create upload directory";
+          error_log("mkdir failed: $uploadDirAbs");
+          $all_set = false;
         } else {
-            $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-            if (!in_array($_FILES['photo']['type'], $allowed_types)) {
-                $errors['photo'] = "Only JPG, PNG, GIF allowed";
-                $all_set = false;
-            } else {
-                if ($_FILES['photo']['size'] > 5 * 1024 * 1024) {
-                    $errors['photo'] = "File too large (max 5MB)";
-                    $all_set = false;
-                } else {
-                    // ✅ Use absolute path for moving
-                    $target_dir = __DIR__ . "/../uploads/properties/";
-                    if (!is_dir($target_dir)) {
-                        mkdir($target_dir, 0755, true);
-                    }
+          // random filename + proper extension
+          $ext = $allowed[$mime];
+          try {
+            $basename = bin2hex(random_bytes(8)); // random, safe
+          } catch (Exception $e) {
+            $basename = time() . '_' . bin2hex(substr(md5(uniqid('', true)), 0, 8));
+          }
+          $file_name = $basename . '.' . $ext;
+          $target_file = $uploadDirAbs . $file_name;
 
-                    $file_name = time() . "_" . basename($_FILES["photo"]["name"]);
-                    $target_file = $target_dir . $file_name;
-
-                    if (move_uploaded_file($_FILES["photo"]["tmp_name"], $target_file)) {
-                        // ✅ Save relative path for DB
-                        $photo_path = "uploads/properties/" . $file_name;
-                    } else {
-                        $errors['photos'] = "Could not save uploaded photo";
-                        $all_set = false;
-
-                        // ✅ Debug info
-                        error_log("Upload failed: tmp_name=" . $_FILES["photo"]["tmp_name"] .
-                            " target_file=" . $target_file);
-                    }
-                }
+          // move uploaded file
+          if (move_uploaded_file($file['tmp_name'], $target_file)) {
+            // delete old file if exists and not same as new
+            if (!empty($property['photos'])) {
+              // convert stored relative path to absolute path for deletion
+              $oldAbs = __DIR__ . "/../" . ltrim($property['photos'], '/');
+              if (file_exists($oldAbs) && is_file($oldAbs)) {
+                @unlink($oldAbs);
+              }
             }
-        }
-    }
 
-    // user tokend decord 
-    $params = [
-        'name' => $name,
-        'category' => $category,
-        'type' => $type,
-        'details' => $details,
-        'address' => $address,
-        'city' => $city,
-        'country' => $country,
-        'zip_code' => $zip_code,
-        'photos' => $photo_path,
-        'listed_by' => $user_id,
-        'created_by' => $user_id
-    ];
-
-    if ($all_set) {
-        //INSERTING THE DATA INTO DB.
-        $result = $db->addProperty($params);
-        if ($result['success']) {
-            header('content-type:application/json');
-            echo json_encode([
-                'status' => 200,
-                'sucess' => true,
-                'errors' => $errors,
-                'message' => $result['message']
-            ]);
-            exit();
-        } else {
-            header('content-type:application/json');
-            echo json_encode([
-                'status' => 400,
-                'sucess' => false,
-                'data' => $data,
-                'errors' => $errors,
-                'message' => $result['message']
-            ]);
+            // save relative path for DB (and for <img src="...">)
+            $photo_path = "uploads/properties/" . $file_name;
+          } else {
+            $errors['photo'] = "Failed to move uploaded file";
+            error_log("move_uploaded_file failed: tmp={$file['tmp_name']} target={$target_file}");
+            $all_set = false;
+          }
         }
-    } else {
-        header('content-type:application/json');
-        echo json_encode([
-            'status' => 500,
-            'sucess' => false,
-            'data' => null,
-            'errors' => $errors,
-            'message' => "An Error Occure, Please check and try Again."
-        ]);
-        exit();
+      }
     }
-} 
+  }
+
+
+  // prepare params
+  $params = [
+    'id' => $property_id,  // IMPORTANT for update
+    'name' => $name,
+    'category' => $category,
+    'type' => $type,
+    'details' => $details,
+    'address' => $address,
+    'city' => $city,
+    'country' => $country,
+    'zip_code' => $zip_code,
+    'photos' => $photo_path,
+  ];
+
+  if ($all_set) {
+    // ✅ Update property instead of insert
+    $result = $db->updateProperty($_POST['id'], $params);
+
+    echo json_encode([
+      'status' => $result['success'] ? 200 : 400,
+      'success' => $result['success'],
+      'errors' => $errors,
+      'message' => $result['message']
+    ]);
+    // header('location:dashboard.php');
+    exit();
+  } else {
+    echo json_encode([
+      'status' => 422,
+      'success' => false,
+      'errors' => $errors,
+      'message' => "Validation failed, please check input"
+    ]);
+    exit();
+  }
+}
+if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+  $property_id = $_GET['id'];
+  // fetching hte data of property.
+  $propert_result = $db->get_single_property($property_id);
+  if (!$propert_result['success']) {
+    echo 'someting went wrong.';
+  }
+  $property = $propert_result['data'][0];
+
+}
+
 ?>
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>AdminLTE 2 | Add Property</title>
+  <title>AdminLTE 2 | Edit Property</title>
   <!-- Tell the browser to be responsive to screen width -->
   <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
   <!-- Bootstrap 3.3.7 -->
@@ -309,71 +311,94 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="col-md-12">
               <div class="box box-primary">
                 <div class="box-header with-border">
-                  <h3 class="box-title">Add New Property</h3>
+                  <h3 class="box-title">Update Property</h3>
                 </div>
 
                 <!-- form start -->
-                <form role="form" id="propertyForm">
+                <form method="post" id="propertyForm">
                   <div class="box-body">
 
                     <div class="form-group">
-                      <label for="propertyName">Property Name</label>
+                      <label for="propertyName">Property Name </label>
+                      <input type="number" class="" name="id" value="<?php echo htmlspecialchars($property['id']) ?>">
                       <input type="text" class="form-control" id="propertyName" name="name"
-                        placeholder="Enter property name" required>
+                        value="<?php echo htmlspecialchars($property['name']) ?>" placeholder="Enter property name"
+                        required>
                     </div>
 
                     <div class="form-group">
                       <label for="category">Category</label>
                       <select class="form-control" id="category" name="category" required>
                         <option value="">-- Select Category --</option>
-                        <option value="apartment">Apartment</option>
-                        <option value="penthouse">Penthouse</option>
-                        <option value="bungalow">Bungalow</option>
-                        <option value="residences">residences</option>
-                        <option value="villa">Villa</option>
+                        <option value="apartment" <?= ($property['category'] === 'apartment') ? 'selected' : '' ?>>
+                          Apartment</option>
+                        <option value="penthouse" <?= ($property['category'] === 'penthouse') ? 'selected' : '' ?>>
+                          Penthouse</option>
+                        <option value="bungalow" <?= ($property['category'] === 'bungalow') ? 'selected' : '' ?>>Bungalow
+                        </option>
+                        <option value="residences" <?= ($property['category'] === 'residences') ? 'selected' : '' ?>>
+                          Residences</option>
+                        <option value="villa" <?= ($property['category'] === 'villa') ? 'selected' : '' ?>>Villa</option>
                       </select>
                     </div>
+
 
                     <div class="form-group">
                       <label for="type">Type</label>
                       <select class="form-control" id="type" name="type" required>
                         <option value="">-- Select type --</option>
-                        <option value="rent">Rent</option>
-                        <option value="sale">Sale</option>
-                        <option value="other">Other</option>
+                        <option value="rent" <?= ($property['type'] === 'rent') ? 'selected' : '' ?>>Rent</option>
+                        <option value="sale" <?= ($property['type'] === 'sale') ? 'selected' : '' ?>>Sale</option>
+                        <option value="other" <?= ($property['type'] === 'other') ? 'selected' : '' ?>>Other</option>
                       </select>
                     </div>
 
+
                     <div class="form-group">
-                      <label for="photos">Property Photos</label>
-                      <input type="file" id="photo" name="photo">
-                      <p class="help-block">Upload one images.</p>
+                      <label for="photo">Property Photo</label>
+
+                      <?php if (!empty($property['photos'])): ?>
+                        <div style="margin-bottom:10px;">
+                          <img src="./<?php echo htmlspecialchars($property['photos']); ?>" alt="Property Photo"
+                            style="max-width: 200px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+                      <?php endif; ?>
+
+                      <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
+                      <p class="help-block">Upload a new image to replace the old one.</p>
                     </div>
+
 
                     <div class="form-group">
                       <label for="details">Property Details</label>
                       <textarea class="form-control" rows="4" id="details" name="details"
-                        placeholder="Enter property details"></textarea>
+                        placeholder="Enter property details"><?php echo htmlspecialchars($property['details'] ?? '') ?></textarea>
                     </div>
+
 
                     <div class="form-group">
                       <label for="zipCode">Zip Code</label>
-                      <input type="text" class="form-control" id="zipCode" name="zip_code" placeholder="Enter zip code">
+                      <input type="text" class="form-control" id="zipCode" name="zip_code"
+                        value="<?php echo htmlspecialchars($property['zip_code']) ?>" placeholder="Enter zip code">
                     </div>
-                    
+
                     <div class="form-group">
                       <label for="address">Address</label>
-                      <input type="text" class="form-control" id="address" name="address" placeholder="Enter the Address">
+                      <input type="text" class="form-control" id="address" name="address"
+                        value="<?php echo htmlspecialchars($property['address']) ?>" placeholder="Enter the Address">
                     </div>
 
                     <div class="form-group">
                       <label for="city">City</label>
-                      <input type="text" class="form-control" id="zipCode" name="city" placeholder="Enter the City.">
+                      <input type="text" class="form-control" id="zipCode" name="city"
+                        value="<?php echo htmlspecialchars($property['city']) ?>" placeholder="Enter the City.">
                     </div>
 
                     <div class="form-group">
                       <label for="country">Country</label>
-                      <input type="text" class="form-control" id="zipCode" name="country" placeholder="Enter the Country.">
+                      <input type="text" class="form-control" id="zipCode"
+                        value="<?php echo htmlspecialchars($property['country']) ?>" name="country"
+                        placeholder="Enter the Country.">
                     </div>
 
                   </div>
