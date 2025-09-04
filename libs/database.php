@@ -153,7 +153,7 @@ class database
                 return [
                     'success' => false,
                     'result' => $result,
-                    'error'=>'something went wrong',
+                    'error' => 'something went wrong',
                     'message' => 'Property Not Listed!'
                 ];
             }
@@ -161,13 +161,63 @@ class database
             array_push($this->result, "Table 'properties' does not exist");
             return [
                 'success' => false,
-                'error'=>'Something went wrong.',
+                'error' => 'Something went wrong.',
                 'message' => 'Table not Exist'
             ];
         }
     }
 
+    public function getProperties(int $page = 1, int $limit = 10): array
+    {
+        $result = [
+            "success" => false,
+            "message" => "",
+            "data" => [],
+            "pagination" => []
+        ];
 
+        if (!$this->table_exist("property")) {
+            $result["message"] = "Properties table does not exist";
+            return $result;
+        }
+
+        // calculate offset
+        $offset = ($page - 1) * $limit;
+
+        // count total properties
+        $countQuery = "SELECT COUNT(*) as total FROM property";
+        $countResult = $this->database->query($countQuery);
+        $row = $countResult->fetch_assoc();
+        $total_records = $row['total'];
+
+        // fetch paginated properties
+        $query = "SELECT * FROM property ORDER BY id DESC LIMIT ? OFFSET ?";
+        $stmt = $this->database->prepare($query);
+        $stmt->bind_param("ii", $limit, $offset);
+        $stmt->execute();
+        $properties = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        if ($properties) {
+            $result["success"] = true;
+            $result["message"] = "Properties fetched successfully";
+            $result["data"] = $properties;
+
+            // pagination info
+            $result["pagination"] = [
+                "current_page" => $page,
+                "per_page" => $limit,
+                "total_records" => $total_records,
+                "total_pages" => ceil($total_records / $limit),
+                "has_next" => $page < ceil($total_records / $limit),
+                "has_prev" => $page > 1
+            ];
+        } else {
+            $result["message"] = "No properties found";
+        }
+        return $result;
+    }
+
+    // getting class deleted
     public function __destruct()
     {
         if ($this->conn) {
