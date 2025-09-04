@@ -12,7 +12,6 @@ $(document).ready(function () {
 
         // Create FormData object (needed for file upload)
         let formData = new FormData(this);
-        console.log("form data in the payload:", formData);
         $.ajax({
             url: "http://localhost/project/real_estate/api/login.php", // API endpoint
             type: "POST",
@@ -22,13 +21,12 @@ $(document).ready(function () {
             success: function (response) {
                 try {
                     let res = response
-                    console.log("Response of the Data.",res)
                     localStorage.setItem('user',JSON.stringify(res.user))
                     cookieStore.set('token',res.token)
                     localStorage.setItem('loggedin',true)
                     if (res.success === true) {
                         alert("✅ " + res.message);
-                        // window.location.href = "./dashboard.php"; // redirect if needed
+                        window.location.href = "./dashboard.php"; // redirect if needed
                     } else {
                         alert("❌ " + res.message);
                         let errors = res.error;

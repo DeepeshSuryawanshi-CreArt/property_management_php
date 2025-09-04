@@ -144,7 +144,7 @@ class database
             if ($result) {
                 array_push($this->result, $this->database->insert_id); // return inserted property_id
                 return [
-                    'success' => false,
+                    'success' => true,
                     'result' => $result,
                     'message' => 'Property Listed Sucessfully.'
                 ];

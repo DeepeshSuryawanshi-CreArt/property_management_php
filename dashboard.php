@@ -200,7 +200,7 @@
   <!-- AdminLTE App -->
   <script src="dist/js/adminlte.min.js"></script>
   <!-- my script -->
-  <script src="assets/js/dashboard.js"></script>
+  <script src="assets/js/dashboard.js?v=1.0.0"></script>
   <!-- AdminLTE dashboard demo (This is only for demo purposes) -->
   <script src="dist/js/pages/dashboard.js"></script>
   <!-- AdminLTE for demo purposes -->

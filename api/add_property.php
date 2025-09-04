@@ -19,7 +19,7 @@ $errors = [
     'city' => '',
     'country' => '',
     'zip_code' => '',
-    'photo' => '',
+    'photos' => '',
     'user_id' => '',
     'token' => '',
     'system' => ''
@@ -80,7 +80,7 @@ try {
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // property fields
-    $name = $category = $type = $details = $address = $city = $country = $zip_code = $photo_path  = null;
+    $name = $category = $type = $details = $address = $city = $country = $zip_code = $photo_path = null;
 
     // name
     if (empty($_POST['name'])) {
@@ -165,23 +165,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $errors['photo'] = "File too large (max 5MB)";
                     $all_set = false;
                 } else {
-                    $target_dir = "../uploads/properties/";
+                    // ✅ Use absolute path for moving
+                    $target_dir = __DIR__ . "/../uploads/properties/";
                     if (!is_dir($target_dir)) {
                         mkdir($target_dir, 0755, true);
                     }
+
                     $file_name = time() . "_" . basename($_FILES["photo"]["name"]);
                     $target_file = $target_dir . $file_name;
 
                     if (move_uploaded_file($_FILES["photo"]["tmp_name"], $target_file)) {
-                        $photo_path = $target_file;
+                        // ✅ Save relative path for DB
+                        $photo_path = "uploads/properties/" . $file_name;
                     } else {
-                        $errors['photo'] = "Could not save uploaded photo";
+                        $errors['photos'] = "Could not save uploaded photo";
                         $all_set = false;
+
+                        // ✅ Debug info
+                        error_log("Upload failed: tmp_name=" . $_FILES["photo"]["tmp_name"] .
+                            " target_file=" . $target_file);
                     }
                 }
             }
         }
     }
+
     // user tokend decord 
     $params = [
         'name' => $name,
@@ -197,31 +205,39 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         'created_by' => $user_id
     ];
 
-    print_r($params);
-    //INSERTING THE DATA INTO DB.
-    $result = $db->addProperty($params);
-
-    if ($result['success']) {
-        header('content-type:application/json');
-        echo json_encode([
-            'status' => 200,
-            'sucess' => true,
-            'data' => $result['data'],
-            'errors' => $errors,
-            'message' => $result['message']
-        ]);
-
+    if ($all_set) {
+        //INSERTING THE DATA INTO DB.
+        $result = $db->addProperty($params);
+        if ($result['success']) {
+            header('content-type:application/json');
+            echo json_encode([
+                'status' => 200,
+                'sucess' => true,
+                'errors' => $errors,
+                'message' => $result['message']
+            ]);
+            exit();
+        } else {
+            header('content-type:application/json');
+            echo json_encode([
+                'status' => 400,
+                'sucess' => false,
+                'data' => $data,
+                'errors' => $errors,
+                'message' => $result['message']
+            ]);
+        }
     } else {
         header('content-type:application/json');
         echo json_encode([
-            'status' => 400,
+            'status' => 500,
             'sucess' => false,
-            'data' => $data,
+            'data' => null,
             'errors' => $errors,
-            'message' => $result['message']
+            'message' => "An Error Occure, Please check and try Again."
         ]);
+        exit();
     }
-
 } else {
     header('content-type:application/json');
     echo json_encode([
