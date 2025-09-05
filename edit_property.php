@@ -59,10 +59,10 @@ function test_data($data)
 
 // POST REQUEST HANDLE
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-  echo "<pre>";
-  var_dump($_POST);
-  var_dump($_FILES);
-  echo "</pre>";
+  // echo "<pre>";
+  // var_dump($_POST);
+  // var_dump($_FILES);
+  // echo "</pre>";
   // // property fields
   $name = $category = $type = $details = $address = $city = $country = $zip_code = $photo_path = null;
   $property_id = $_POST['id'];

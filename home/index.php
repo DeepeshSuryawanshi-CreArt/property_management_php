@@ -32,14 +32,14 @@ try {
         "message" => "Invalid or expired token",
         "error" => $e->getMessage()
     ]);
-    exit();
+    header('location:../login.html');
 }
 
 // get page from request (default = 1)
 $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 5;
 
-$response = $db->getProperties($page, $limit);
+$response = $db->getallProperties();
 $properties = $response['data'];
 ?>
 <!DOCTYPE html>
@@ -112,15 +112,18 @@ $properties = $response['data'];
                         $address = trim(htmlspecialchars(($prop['address'] ?? '') . ', ' . ($prop['city'] ?? '') . ', ' . ($prop['country'] ?? '') . ' ' . ($prop['zip_code'] ?? '')));
                         $photo = !empty($prop['photos']) ? htmlspecialchars($prop['photos']) : 'assets/img/default-property.jpg';
                         $price = isset($prop['price']) ? htmlspecialchars($prop['price']) : '';
-                    ?>
-                        <div class="card mx-2" data-category="<?php echo $category ?>" data-type="<?php echo $type ?>" data-name="<?php echo $name ?>">
-                            <img src="<?php echo $photo ?>" class="card-img-top" alt="<?php echo $name ?>">
+                        ?>
+                        <div class="card mx-2" data-category="<?php echo $category ?>" data-type="<?php echo $type ?>"
+                            data-name="<?php echo $name ?>">
+                            <img src="../<?php echo $photo ?>" class="card-img-top" alt="<?php echo $name ?>">
                             <div class="card-body">
                                 <h5 class="card-title"><?php echo $name ?></h5>
-                                <p class="mb-1"><span class="badge bg-primary"><?php echo $category ?></span> <span class="badge bg-success"><?php echo $type ?></span></p>
-                                <p class="text-muted small mb-1"><i class="fa fa-map-marker-alt me-1"></i> <?php echo $address ?></p>
+                                <p class="mb-1"><span class="badge bg-primary"><?php echo $category ?></span> <span
+                                        class="badge bg-success"><?php echo $type ?></span></p>
+                                <p class="text-muted small mb-1"><i class="fa fa-map-marker-alt me-1"></i>
+                                    <?php echo $address ?></p>
                                 <?php if ($price !== ''): ?>
-                                    <p class="fw-bold text-primary mb-0"><?php echo $price ?></p>
+                                    <p class="fw-bold text-primary mb-0">$ <?php echo $price ?></p>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -129,163 +132,39 @@ $properties = $response['data'];
                     <p class="text-center">No properties available.</p>
                 <?php endif; ?>
             </div>
-
-            // Card 8
-            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
-                <!-- Card 1 -->
-                <div class="col">
-                    <div class="card h-100 property-card" data-category="Apartment" data-type="Rent"
-                        data-name="Modern Apartment">
-                        <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80"
-                            class="card-img-top" alt="Modern Apartment">
-                        <div class="card-body">
-                            <h5 class="card-title">Modern Apartment</h5>
-                            <p class="mb-1"><span class="badge bg-primary">Apartment</span> <span
-                                    class="badge bg-success">Rent</span></p>
-                            <p class="fw-bold text-primary mb-0">$1,200 / mo</p>
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mt-4">
+                <?php if (!empty($properties) && is_array($properties)): ?>
+                    <?php foreach ($properties as $prop):
+                        $id = htmlspecialchars($prop['id'] ?? '');
+                        $name = htmlspecialchars($prop['name'] ?? 'Untitled');
+                        $category = htmlspecialchars($prop['category'] ?? 'Unknown');
+                        $type = htmlspecialchars(ucfirst($prop['type'] ?? ''));
+                        $address = trim(htmlspecialchars(($prop['address'] ?? '') . ', ' . ($prop['city'] ?? '') . ', ' . ($prop['country'] ?? '') . ' ' . ($prop['zip_code'] ?? '')));
+                        $photo = !empty($prop['photos']) ? htmlspecialchars($prop['photos']) : 'assets/img/default-property.jpg';
+                        $price = isset($prop['price']) ? htmlspecialchars($prop['price']) : '';
+                        ?>
+                        <div class="col">
+                            <div class="card h-100 property-card" data-category="Apartment" data-type="Rent"
+                                data-name="Modern Apartment">
+                                <img src="../<?php echo $photo ?>" class="card-img-top" alt="Modern Apartment">
+                                <div class="card-body">
+                                    <h5 class="card-title"><?php echo $name ?></h5>
+                                    <p class="text-muted small mb-1"><i class="fa fa-map-marker-alt me-1"></i>
+                                        <?php echo $address ?></p>
+                                    <p class="mb-1"><span class="badge bg-primary"><?php echo $category ?></span> <span
+                                            class="badge bg-success"><?php echo $type ?></span></p>
+                                    <div class="d-flex justify-content-between">
+                                        <p class="fw-bold text-primary mb-0">$ <?php echo $price ?></p>
+                                        <a href="./details.php?id=<?php echo $id ?>" class=""> Details </a>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                <!-- Card 2 -->
-                <div class="col">
-                    <div class="card h-100 property-card" data-category="Villa" data-type="Sale"
-                        data-name="Luxury Villa">
-                        <img src="https://images.unsplash.com/photo-1460518451285-97b6aa326961?auto=format&fit=crop&w=400&q=80"
-                            class="card-img-top" alt="Luxury Villa">
-                        <div class="card-body">
-                            <h5 class="card-title">Luxury Villa</h5>
-                            <p class="mb-1"><span class="badge bg-warning text-dark">Villa</span> <span
-                                    class="badge bg-danger">Sale</span></p>
-                            <p class="fw-bold text-primary mb-0">$3,500,000</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Card 3 -->
-                <div class="col">
-                    <div class="card h-100 property-card" data-category="Studio" data-type="Rent"
-                        data-name="Cozy Studio">
-                        <img src="https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?auto=format&fit=crop&w=400&q=80"
-                            class="card-img-top" alt="Cozy Studio">
-                        <div class="card-body">
-                            <h5 class="card-title">Cozy Studio</h5>
-                            <p class="mb-1"><span class="badge bg-info text-dark">Studio</span> <span
-                                    class="badge bg-success">Rent</span></p>
-                            <p class="fw-bold text-primary mb-0">$900 / mo</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Card 4 -->
-                <div class="col">
-                    <div class="card h-100 property-card" data-category="Bungalow" data-type="Sale"
-                        data-name="Family Bungalow">
-                        <img src="https://images.unsplash.com/photo-1523217582562-09d0def993a6?auto=format&fit=crop&w=400&q=80"
-                            class="card-img-top" alt="Family Bungalow">
-                        <div class="card-body">
-                            <h5 class="card-title">Family Bungalow</h5>
-                            <p class="mb-1"><span class="badge bg-secondary">Bungalow</span> <span
-                                    class="badge bg-danger">Sale</span></p>
-                            <p class="fw-bold text-primary mb-0">$850,000</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Card 5 -->
-                <div class="col">
-                    <div class="card h-100 property-card" data-category="Apartment" data-type="Rent"
-                        data-name="Urban Apartment">
-                        <img src="https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80"
-                            class="card-img-top" alt="Urban Apartment">
-                        <div class="card-body">
-                            <h5 class="card-title">Urban Apartment</h5>
-                            <p class="mb-1"><span class="badge bg-primary">Apartment</span> <span
-                                    class="badge bg-success">Rent</span></p>
-                            <p class="fw-bold text-primary mb-0">$1,500 / mo</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Card 6 -->
-                <div class="col">
-                    <div class="card h-100 property-card" data-category="Villa" data-type="Sale"
-                        data-name="Beachside Villa">
-                        <img src="https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=400&q=80"
-                            class="card-img-top" alt="Beachside Villa">
-                        <div class="card-body">
-                            <h5 class="card-title">Beachside Villa</h5>
-                            <p class="mb-1"><span class="badge bg-warning text-dark">Villa</span> <span
-                                    class="badge bg-danger">Sale</span></p>
-                            <p class="fw-bold text-primary mb-0">$2,800,000</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Card 7 -->
-                <div class="col">
-                    <div class="card h-100 property-card" data-category="Studio" data-type="Rent"
-                        data-name="Downtown Studio">
-                        <img src="https://images.unsplash.com/photo-1519974719765-e6559eac2575?auto=format&fit=crop&w=400&q=80"
-                            class="card-img-top" alt="Downtown Studio">
-                        <div class="card-body">
-                            <h5 class="card-title">Downtown Studio</h5>
-                            <p class="mb-1"><span class="badge bg-info text-dark">Studio</span> <span
-                                    class="badge bg-success">Rent</span></p>
-                            <p class="fw-bold text-primary mb-0">$1,100 / mo</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Card 8 -->
-                <div class="col">
-                    <div class="card h-100 property-card" data-category="Bungalow" data-type="Sale"
-                        data-name="Classic Bungalow">
-                        <img src="https://images.unsplash.com/photo-1467987506553-8f3916508521?auto=format&fit=crop&w=400&q=80"
-                            class="card-img-top" alt="Classic Bungalow">
-                        <div class="card-body">
-                            <h5 class="card-title">Classic Bungalow</h5>
-                            <p class="mb-1"><span class="badge bg-secondary">Bungalow</span> <span
-                                    class="badge bg-danger">Sale</span></p>
-                            <p class="fw-bold text-primary mb-0">$950,000</p>
-                        </div>
-                    </div>
-                </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <p class="text-center">No properties available.</p>
+                <?php endif; ?>
             </div>
-            <style>
-                .property-card {
-                    max-width: 500px;
-                    min-width: 250px;
-                    width: 100%;
-                    height: 500px;
-                    border-radius: 1rem;
-                    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
-                    overflow: hidden;
-                    margin: 0 auto;
-                    display: flex;
-                    flex-direction: column;
-                }
-
-                .property-card .card-img-top {
-                    height: 240px;
-                    object-fit: cover;
-                    border-top-left-radius: 1rem;
-                    border-top-right-radius: 1rem;
-                }
-
-                .property-card .card-body {
-                    flex: 1 1 auto;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: flex-end;
-                }
-
-                @media (max-width: 576px) {
-                    .property-card {
-                        height: 350px;
-                        max-width: 100%;
-                    }
-
-                    .property-card .card-img-top {
-                        height: 140px;
-                    }
-                }
-            </style>
-
-
         </div>
         </div>
     </section>

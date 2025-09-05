@@ -238,6 +238,50 @@ class database
         ];
         return $result;
     }
+
+    // get all properties
+    public function getallProperties(): array
+    {
+        $result = [
+            "success" => false,
+            "message" => "",
+            "data" => [],
+            "pagination" => []
+        ];
+
+        // check if property table exists
+        if (!$this->table_exist("property")) {
+            $result["message"] = "Properties table does not exist";
+            return $result;
+        }
+
+        // 2. fetch paginated properties with user name
+        $query = "SELECT p.*, CONCAT(u.firstname, ' ', u.lastname) AS listed_by
+          FROM property p 
+          LEFT JOIN users u ON p.listed_by = u.id 
+          ORDER BY p.id DESC";
+
+        $stmt = $this->database->prepare($query);
+
+        if (!$stmt) {
+            $result["message"] = "Prepare failed: " . $this->database->error;
+            return $result;
+        }
+
+        if (!$stmt->execute()) {
+            $result["message"] = "Execute failed: " . $stmt->error;
+            return $result;
+        }
+
+        $properties = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        // 3. set response
+        $result["success"] = true;
+        $result["message"] = $properties ? "Properties fetched successfully" : "No properties found";
+        $result["data"] = $properties;
+
+        return $result;
+    }
     // update the property
     public function updateProperty(int $id, array $params = []): array
     {
