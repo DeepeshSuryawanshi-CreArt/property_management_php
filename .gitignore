@@ -1,3 +1,5 @@
+# node modules
+node_modules
 #  Admint lte 2 files ignore
 bower_components
 plugins
