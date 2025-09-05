@@ -59,9 +59,10 @@ function test_data($data)
 
 // POST REQUEST HANDLE
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-  // echo "<pre>";
-  // var_dump($_POST);
-  // echo "</pre>";
+  echo "<pre>";
+  var_dump($_POST);
+  var_dump($_FILES);
+  echo "</pre>";
   // // property fields
   $name = $category = $type = $details = $address = $city = $country = $zip_code = $photo_path = null;
   $property_id = $_POST['id'];
@@ -127,71 +128,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
   }
 
-  // photo upload (keep existing if no new photo uploaded)
-  // Keep current DB photo by default (so it remains if no new file uploaded)
-  $photo_path = $_POST['photo'];
-
-  // Handle uploaded photo (if any)
-  if (isset($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE) {
-    $file = $_FILES['photo'];
-
-    // basic upload error check
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-      $errors['photo'] = "Error uploading photo (code {$file['error']})";
+  // property photo upload
+  if (!empty($_FILES['photo']['name'])) {
+    if ($_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+      $errors['photo'] = "Error uploading photo";
       $all_set = false;
     } else {
-      // use finfo for reliable MIME detection
-      $finfo = new finfo(FILEINFO_MIME_TYPE);
-      $mime = $finfo->file($file['tmp_name']);
-      $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
-
-      if (!isset($allowed[$mime])) {
+      $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
+      if (!in_array($_FILES['photo']['type'], $allowed_types)) {
         $errors['photo'] = "Only JPG, PNG, GIF allowed";
         $all_set = false;
-      } elseif ($file['size'] > 5 * 1024 * 1024) {
-        $errors['photo'] = "File too large (max 5MB)";
-        $all_set = false;
       } else {
-        // Absolute directory where PHP will write the file
-        $uploadDirAbs = __DIR__ . "/../uploads/properties/";
-        if (!is_dir($uploadDirAbs) && !mkdir($uploadDirAbs, 0755, true)) {
-          $errors['photo'] = "Cannot create upload directory";
-          error_log("mkdir failed: $uploadDirAbs");
+        if ($_FILES['photo']['size'] > 5 * 1024 * 1024) {
+          $errors['photo'] = "File too large (max 5MB)";
           $all_set = false;
         } else {
-          // random filename + proper extension
-          $ext = $allowed[$mime];
-          try {
-            $basename = bin2hex(random_bytes(8)); // random, safe
-          } catch (Exception $e) {
-            $basename = time() . '_' . bin2hex(substr(md5(uniqid('', true)), 0, 8));
+          // ✅ Use absolute path for moving
+          $target_dir = "./uploads/properties/";
+          if (!is_dir($target_dir)) {
+            mkdir($target_dir, 0755, true);
           }
-          $file_name = $basename . '.' . $ext;
-          $target_file = $uploadDirAbs . $file_name;
 
-          // move uploaded file
-          if (move_uploaded_file($file['tmp_name'], $target_file)) {
-            // delete old file if exists and not same as new
-            if (!empty($property['photos'])) {
-              // convert stored relative path to absolute path for deletion
-              $oldAbs = __DIR__ . "/../" . ltrim($property['photos'], '/');
-              if (file_exists($oldAbs) && is_file($oldAbs)) {
-                @unlink($oldAbs);
-              }
-            }
+          $file_name = time() . "_" . basename($_FILES["photo"]["name"]);
+          $target_file = $target_dir . $file_name;
 
-            // save relative path for DB (and for <img src="...">)
-            $photo_path = "uploads/properties/" . $file_name;
+          if (move_uploaded_file($_FILES["photo"]["tmp_name"], $target_file)) {
+            // ✅ Save relative path for DB
+            $photo_path = $target_file;
           } else {
-            $errors['photo'] = "Failed to move uploaded file";
-            error_log("move_uploaded_file failed: tmp={$file['tmp_name']} target={$target_file}");
+            $errors['photos'] = "Could not save uploaded photo";
             $all_set = false;
+
+            // ✅ Debug info
+            error_log("Upload failed: tmp_name=" . $_FILES["photo"]["tmp_name"] .
+              " target_file=" . $target_file);
           }
         }
       }
     }
   }
-
 
   // prepare params
   $params = [
@@ -315,7 +290,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
                 </div>
 
                 <!-- form start -->
-                <form method="post" id="propertyForm">
+                <form method="post" id="propertyForm" enctype="multipart/form-data">
                   <div class="box-body">
 
                     <div class="form-group">

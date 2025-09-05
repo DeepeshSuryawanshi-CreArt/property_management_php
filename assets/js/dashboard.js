@@ -19,13 +19,13 @@ function clearCookies() {
       .replace(/^ +/, "")
       .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
   });
+  localStorage.clear();
 }
 
 $(document).ready(function () {
   (async function () {
     let userLoggedIn = localStorage.getItem('loggedin');
     token = await getToken();
-
     // Redirect if not logged in
     if (!userLoggedIn || !token) {
       window.location.href = "./login.html";
