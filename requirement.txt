@@ -2,3 +2,6 @@ Dashboard Liberary :AdminLTE-2.4.18
 
 setup the ADMIN LTE in project
 downloard admin lte v 2.5.18
+Downloard fom github 
+
+Link : https://github.com/ColorlibHQ/AdminLTE/releases/tag/v2.4.18

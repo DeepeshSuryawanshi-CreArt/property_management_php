@@ -6,6 +6,6 @@ plugins
 dist
 # composer files
 vendor
-uploads/properties/
-uploads/users/
+uploads/properties/*
+uploads/users/*
 # 

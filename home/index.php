@@ -39,8 +39,14 @@ try {
 $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 5;
 
-$response = $db->getallProperties();
+$filter_type = isset($_GET['type']) && $_GET['type'] !== '' ? trim($_GET['type']) : null;
+$filter_category = isset($_GET['category']) && $_GET['category'] !== '' ? trim($_GET['category']) : null;
+$filter_name = isset($_GET['name']) && $_GET['name'] !== '' ? trim($_GET['name']) : null;
+
+$response = $db->getallProperties($filter_type, $filter_category, $filter_name);
+
 $properties = $response['data'];
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -80,25 +86,27 @@ $properties = $response['data'];
         <div class="container">
             <h2 class="text-center fw-bold mb-4">Featured Properties</h2>
             <!-- Filter Row -->
-            <form id="property-filter" class="row g-3 mb-4 justify-content-center">
+            <form id="property-filter" method="get" class="row g-3 mb-4 justify-content-center">
                 <div class="col-md-3">
-                    <select class="form-select" id="categoryFilter">
-                        <option value="">All Categories</option>
-                        <option value="Apartment">Apartment</option>
-                        <option value="Villa">Villa</option>
-                        <option value="Studio">Studio</option>
-                        <option value="Bungalow">Bungalow</option>
+                    <select class="form-select" name="category" id="categoryFilter">
+                        <option value="">Select Category</option>
+                        <option value="apartment" <?php echo ($filter_category === 'apartment') ? 'selected' : '' ?>>Apartment</option>
+                        <option value="penthouse" <?php echo ($filter_category === 'penthouse') ? 'selected' : '' ?>>Penthouse</option>
+                        <option value="bungalow" <?php echo ($filter_category === 'bungalow') ? 'selected' : '' ?>>Bungalow</option>
+                        <option value="residences" <?php echo ($filter_category === 'residences') ? 'selected' : '' ?>>Residences</option>
+                        <option value="villa" <?php echo ($filter_category === 'villa') ? 'selected' : '' ?>>Villa</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <select class="form-select" id="typeFilter">
-                        <option value="">All Types</option>
-                        <option value="Rent">Rent</option>
-                        <option value="Sale">Sale</option>
+                    <select class="form-select" name="type" id="typeFilter">
+                        <option value="">Select type</option>
+                        <option value="rent" <?php echo ($filter_type === 'rent') ? 'selected' : '' ?>>Rent</option>
+                        <option value="sale" <?php echo ($filter_type === 'sale') ? 'selected' : '' ?>>Sale</option>
+                        <option value="other" <?php echo ($filter_type === 'other') ? 'selected' : '' ?>>Other</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <input type="text" class="form-control" id="nameFilter" placeholder="Search by name...">
+                    <input type="text" name="name" class="form-control" id="nameFilter" placeholder="Search by name..." value="<?php echo htmlspecialchars($filter_name ?? '') ?>">
                 </div>
             </form>
 
@@ -113,7 +121,7 @@ $properties = $response['data'];
                         $photo = !empty($prop['photos']) ? htmlspecialchars($prop['photos']) : 'assets/img/default-property.jpg';
                         $price = isset($prop['price']) ? htmlspecialchars($prop['price']) : '';
                         ?>
-                        <div class="card mx-2" data-category="<?php echo $category ?>" data-type="<?php echo $type ?>"
+                        <div class="card mx-2" data-category="<?php echo strtolower($category) ?>" data-type="<?php echo strtolower($prop['type'] ?? '') ?>"
                             data-name="<?php echo $name ?>">
                             <img src="../<?php echo $photo ?>" class="card-img-top" alt="<?php echo $name ?>">
                             <div class="card-body">
@@ -144,8 +152,8 @@ $properties = $response['data'];
                         $price = isset($prop['price']) ? htmlspecialchars($prop['price']) : '';
                         ?>
                         <div class="col">
-                            <div class="card h-100 property-card" data-category="Apartment" data-type="Rent"
-                                data-name="Modern Apartment">
+                            <div class="card h-100 property-card" data-category="<?php echo strtolower($category) ?>" data-type="<?php echo strtolower($prop['type'] ?? '') ?>"
+                                data-name="<?php echo $name ?>">
                                 <img src="../<?php echo $photo ?>" class="card-img-top" alt="Modern Apartment">
                                 <div class="card-body">
                                     <h5 class="card-title"><?php echo $name ?></h5>
@@ -190,23 +198,17 @@ $properties = $response['data'];
                 ]
             });
 
-            function filterProperties() {
-                var category = $('#categoryFilter').val();
-                var type = $('#typeFilter').val();
-                var name = $('#nameFilter').val().toLowerCase();
-
-                $slider.slick('slickUnfilter');
-                $slider.slick('slickFilter', function () {
-                    var $card = $(this);
-                    var matchCategory = !category || $card.data('category') === category;
-                    var matchType = !type || $card.data('type') === type;
-                    var matchName = !name || $card.data('name').toLowerCase().includes(name);
-                    return matchCategory && matchType && matchName;
-                });
+            // submit filters by GET when inputs change (debounced)
+            var debounceTimeout = null;
+            function submitFiltersDebounced() {
+                clearTimeout(debounceTimeout);
+                debounceTimeout = setTimeout(function () {
+                    $('#property-filter').submit();
+                }, 350);
             }
 
-            $('#categoryFilter, #typeFilter').on('change', filterProperties);
-            $('#nameFilter').on('input', filterProperties);
+            $('#categoryFilter, #typeFilter').on('change', submitFiltersDebounced);
+            $('#nameFilter').on('input', submitFiltersDebounced);
         });
     </script>
     <style>

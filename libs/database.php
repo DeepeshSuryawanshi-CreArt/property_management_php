@@ -240,7 +240,7 @@ class database
     }
 
     // get all properties
-    public function getallProperties(): array
+    public function getallProperties(?string $type = null, ?string $category = null, ?string $name = null): array
     {
         $result = [
             "success" => false,
@@ -255,17 +255,51 @@ class database
             return $result;
         }
 
-        // 2. fetch paginated properties with user name
+        // base query
         $query = "SELECT p.*, CONCAT(u.firstname, ' ', u.lastname) AS listed_by
-          FROM property p 
-          LEFT JOIN users u ON p.listed_by = u.id 
-          ORDER BY p.id DESC";
+              FROM property p
+              LEFT JOIN users u ON p.listed_by = u.id";
+
+        // conditions array
+        $conditions = [];
+        $params = [];
+        $types = "";
+
+        if (!empty($type)) {
+            $conditions[] = "p.type = ?";
+            $params[] = $type;
+            $types .= "s";
+        }
+
+        if (!empty($category)) {
+            $conditions[] = "p.category = ?";
+            $params[] = $category;
+            $types .= "s";
+        }
+
+        if (!empty($name)) {
+            $conditions[] = "p.name LIKE ?";
+            $params[] = "%" . $name . "%";
+            $types .= "s";
+        }
+
+        // add WHERE if conditions exist
+        if (!empty($conditions)) {
+            $query .= " WHERE " . implode(" AND ", $conditions);
+        }
+
+        // order by latest
+        $query .= " ORDER BY p.id DESC";
 
         $stmt = $this->database->prepare($query);
-
         if (!$stmt) {
             $result["message"] = "Prepare failed: " . $this->database->error;
             return $result;
+        }
+
+        // bind params if filters are provided
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
         }
 
         if (!$stmt->execute()) {
@@ -275,13 +309,14 @@ class database
 
         $properties = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-        // 3. set response
+        // response
         $result["success"] = true;
         $result["message"] = $properties ? "Properties fetched successfully" : "No properties found";
         $result["data"] = $properties;
 
         return $result;
     }
+
     // update the property
     public function updateProperty(int $id, array $params = []): array
     {
